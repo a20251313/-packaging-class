@@ -10,13 +10,13 @@
 
 
 #import "JFHttpRequsetManger.h"
-#import "DomainNameParser.h"
+#import "Base64.h"
 
 NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
 #define dataKey(requestString,index)  [NSString stringWithFormat:@"%@%d",requestString,index]
-
-
-
+#ifndef SERVERAPPURL
+#define SERVERAPPURL        @"http://10.0.5.120:8080/mobile/"
+#endif
 @implementation JFURLConnection
 @synthesize index;
 @synthesize firstUrl;
@@ -24,6 +24,7 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
 @synthesize dicParam;
 @synthesize LastUrl;
 @synthesize isFirst;
+@synthesize method;
 
 
 -(id)initWithRequest:(NSURLRequest *)request delegate:(id)delegate index:(int)myindex
@@ -38,12 +39,14 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
 -(void)dealloc
 {
     
-    DLOG(@"JFURLConnection dealloc");
+    DEBUGLog(@"JFURLConnection dealloc");
     self.firstUrl = nil;
     self.secondUrl = nil;
     self.dicParam = nil;
     self.LastUrl = nil;
+#if !__has_feature(objc_arc)
     [super dealloc];
+#endif
 }
 @end
 
@@ -58,17 +61,26 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
 
         m_dicStoreData = [[NSMutableDictionary alloc] init];
         m_index = 0;
+     
     }
     
     return self;
 }
 
--(void)startRequestData:(NSDictionary*)dicInfo  requestURL:(NSString*)LastUrl
+-(void)startRequestData:(NSDictionary*)dicInfo  requestURL:(NSString*)LastUrl method:(NSString*)method
 {
+    if (![dicInfo count])
+    {
+        DEBUGLog(@"startRequestData return by no values:%@",dicInfo);
+       // return;
+    }
    
-
-  
+    for (NSString *key in m_dicStoreData.allKeys)
+    {
+        DEBUGLog(@"key:%@\n",key);
+    }
     NSMutableData   *data = [m_dicStoreData objectForKey:dataKey(LastUrl, m_index)];
+    DEBUGLog(@"currentKey:%@\n",dataKey(LastUrl, m_index));
     if (data)
     {
         [data setData:nil];
@@ -95,104 +107,41 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
         
     }
 
-    NSString    *strUrl = [DomainNameParser getFirstHttpUrl];
-    DLOG(@"startRequestData:headurl:%@",strUrl);
+    NSString    *strUrl = SERVERAPPURL;
+ //   DEBUGLog(@"startRequestData:headurl:%@",strUrl);
     
     NSString *requreststring = [strUrl stringByAppendingString:LastUrl];
     NSURL *url = [NSURL URLWithString:requreststring];
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
-    NSString *msgLength = [NSString stringWithFormat:@"%d", [postString length]];
+    NSString *msgLength = [NSString stringWithFormat:@"%ld", (unsigned long)[postString length]];
     [req addValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     [req addValue:msgLength forHTTPHeaderField:@"Content-Length"];
-    [req setHTTPMethod:@"POST"];
+    [req setHTTPMethod:method];
     [req setHTTPBody: [postString dataUsingEncoding:NSUTF8StringEncoding]];
     
     JFURLConnection *conn = [[JFURLConnection alloc] initWithRequest:req delegate:self index:m_index];
     conn.dicParam = dicInfo;
     conn.LastUrl = LastUrl;
-    conn.isFirst = YES;
-    m_index++;
-    [conn start];
-    if (!conn)
-    {
-        DLOG(@"startRequestData fail:%@",req);
-    }
-    [conn release];
-    
-    
-    DLOG(@"startRequestData:%@  requestString:%@",postString,LastUrl);
-    
-}
-
-
--(void)startTrySecondRequestData:(NSDictionary*)dicInfo  requestURL:(NSString*)LastUrl
-{
-    
-    
-    
-    NSMutableData   *data = [m_dicStoreData objectForKey:dataKey(LastUrl, m_index)];
-    if (data)
-    {
-        [data setData:nil];
-    }else
-    {
-        data = [NSMutableData data];
-        [data setData:nil];
-        [m_dicStoreData setObject:data forKey:dataKey(LastUrl, m_index)];
-    }
-    
-    
-    
-    NSString *postString = @"";
-    
-    for (NSString *key in dicInfo)
-    {
-        if ([postString isEqualToString:@""])
-        {
-            postString = [postString stringByAppendingFormat:@"%@=%@",key,[dicInfo valueForKey:key]];
-        }else
-        {
-            postString = [postString stringByAppendingFormat:@"&%@=%@",key,[dicInfo valueForKey:key]];
-        }
-        
-    }
-    
-    NSString    *strUrl = [DomainNameParser getSecondHttpUrl];
-
-    
-    NSString *requreststring = [strUrl stringByAppendingString:LastUrl];
-    NSURL *url = [NSURL URLWithString:requreststring];
-    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
-    NSString *msgLength = [NSString stringWithFormat:@"%d", [postString length]];
-    [req addValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-    [req addValue:msgLength forHTTPHeaderField:@"Content-Length"];
-    [req setHTTPMethod:@"POST"];
-    [req setHTTPBody: [postString dataUsingEncoding:NSUTF8StringEncoding]];
-    
-    JFURLConnection *conn = [[JFURLConnection alloc] initWithRequest:req delegate:self index:m_index];
     conn.isFirst = NO;
+    conn.method = method;
     m_index++;
     [conn start];
     if (!conn)
     {
-        DLOG(@"startRequestData fail:%@",req);
+        DEBUGLog(@"startRequestData fail:%@",req);
     }
-    [conn release];
+   // [conn release];
     
     
-    DLOG(@"startTrySecondRequestData:%@  requestString:%@",postString,LastUrl);
+    DEBUGLog(@"\n\n----------\n\nparams:\n%@  actions:%@\n\n----------\n\n",dicInfo,LastUrl);
     
 }
 
-
-
-#pragma mark  delegate
+#pragma mark  NSURLConnectiondelegate
 - (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response
 {
     
-    
-    
-    
+
     NSHTTPURLResponse  *httprespone = (NSHTTPURLResponse*)response;
     
     NSString *lastUrl = [[[[connection originalRequest] URL] absoluteString] lastPathComponent];
@@ -201,12 +150,12 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
     {
         
         
-        JFURLConnection *con = (JFURLConnection*)connection;
-        if (con.isFirst)
+      //  JFURLConnection *con = (JFURLConnection*)connection;
+      /*  if (con.isFirst)
         {
-            [self startTrySecondRequestData:con.dicParam requestURL:con.LastUrl];
+            [self startTrySecondRequestData:con.dicParam requestURL:con.LastUrl method:con.method];
             return;
-        }
+        }*/
         
         dispatch_async(dispatch_get_main_queue(), ^{
             if (delegate && [delegate respondsToSelector:@selector(getNetError:requsetString:)])
@@ -214,7 +163,7 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
                 [delegate getNetError:[NSString stringWithFormat:@"%d",0] requsetString:lastUrl];
             }else
             {
-                DLOG(@"connection didFailWithError not callback......................");
+                DEBUGLog(@"connection didFailWithError not callback......................");
             }
         });
         
@@ -244,32 +193,26 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
 
 - (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error
 {
-    DLOG(@"connection:%@ didFailWithError:%@",connection,error);
+    DEBUGLog(@"connection:%@ didFailWithError:%@",connection,error);
     NSString *lastUrl = [[[[connection originalRequest] URL] absoluteString] lastPathComponent];
     JFURLConnection *con = (JFURLConnection*)connection;
     NSMutableData   *mutabledata = [m_dicStoreData objectForKey:dataKey(lastUrl, con.index)];
     [mutabledata setData:nil];
     
-    
-    if (con.isFirst)
-    {
-        [self startTrySecondRequestData:con.dicParam requestURL:lastUrl];
-        return;
-    }
     dispatch_async(dispatch_get_main_queue(), ^
     {
         
-        [[NSNotificationCenter defaultCenter] postNotificationName:BNRNetWorkErrorOccur object:nil];
+       // [[NSNotificationCenter defaultCenter] postNotificationName:BNRNetWorkErrorOccur object:nil];
         if (delegate && [delegate respondsToSelector:@selector(getNetError:requsetString:)])
         {
             [delegate getNetError:[NSString stringWithFormat:@"%d",0] requsetString:lastUrl];
         }else
         {
-              DLOG(@"connection didFailWithError not callback......................");
+              DEBUGLog(@"connection didFailWithError not callback......................");
         }
     });
   
-    DLOG(@"requsetString:%@",lastUrl);
+    DEBUGLog(@"requsetString:%@",lastUrl);
 }
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection
@@ -287,25 +230,26 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
             [delegate getNetError:[NSString stringWithFormat:@"%d",0] requsetString:lastUrl];
         }else
         {
-            DLOG(@"connection didFailWithError not callback......................");
+            DEBUGLog(@"connection didFailWithError not callback......................");
         }
         [m_dicStoreData removeObjectForKey:dataKey(lastUrl, con.index)];
         
-        DLOG(@"connectionDidFinishLoading no data");
+        DEBUGLog(@"connectionDidFinishLoading no data");
         return;
     }
     
     
      NSString  *strTest = [[NSString alloc] initWithData:mutabledata encoding:NSUTF8StringEncoding];
-     NSDictionary  *dicInfo = [mutabledata objectFromJSONData];
+    
+     NSDictionary  *dicInfo = [strTest objectFromJSONString];
     if (dicInfo == nil || strTest == nil)
     {
       
         
         NSString    *datastring = [[NSString alloc] initWithCString:[mutabledata bytes] encoding:NSUTF8StringEncoding];
-        NSDictionary  *dicInfo = [mutabledata objectFromJSONData];
-          DLOG(@"connectionDidFinishLoading mutabledata:%@ datastring:%@ dicInfo:%@",mutabledata,datastring,dicInfo);
-        [datastring release];
+        NSDictionary  *dicInfo = [datastring objectFromJSONString];
+          DEBUGLog(@"connectionDidFinishLoading mutabledata:%@ datastring:%@ dicInfo:%@",mutabledata,datastring,dicInfo);
+        ReleaseObject(datastring);
     }
     
    
@@ -328,12 +272,12 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
                            [delegate getServerResult:dicMutInfo requsetString:lastUrl];
                        }else
                        {
-                           DLOG(@"connectionDidFinishLoading not callback......................");
+                           DEBUGLog(@"connectionDidFinishLoading not callback......................");
                        }
                    });
   
-    DLOG(@"dicInfo:%@  requeststring:%@",dicMutInfo,lastUrl);
-    [strTest release];
+    DEBUGLog(@"dicInfo:%@  requeststring:%@",dicMutInfo,lastUrl);
+    ReleaseObject(strTest);
     
     [m_dicStoreData removeObjectForKey:dataKey(lastUrl, con.index)];
 }
@@ -342,10 +286,11 @@ NSString   *const       BNRNetWorkErrorOccur = @"BNRNetWorkErrorOccur";
 
 -(void)dealloc
 {
-
-    [m_dicStoreData release];
-    m_dicStoreData = nil;
+    DEBUGLog(@"JFHttpRequsetManger dealloc");
+    ReleaseObject(m_dicStoreData);
+#if !__has_feature(objc_arc)
     [super dealloc];
+#endif
 }
 
 @end
