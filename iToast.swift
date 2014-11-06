@@ -223,7 +223,18 @@ class iToast: NSObject {
         }
         point = CGPointMake(point.x+CGFloat(offsetLeft), point.y+CGFloat(offsetTop));
         button.center = point;
-        var timer1 = NSTimer(timeInterval: 2, target: self, selector: "hideToast:", userInfo: nil, repeats: false);
+        var duraion:NSTimeInterval = 0;
+        if(theSettings != nil)
+        {
+            if let dur = theSettings?.duration
+            {
+                duraion = Double(dur/400);
+            }
+            
+        }
+   
+        var timer1 = NSTimer(timeInterval: duraion,target: self, selector: "hideToast:", userInfo: nil, repeats: false);
+      //  NSTimer(timeInterval: <#NSTimeInterval#>, target: <#AnyObject#>, selector: <#Selector#>, userInfo: <#AnyObject?#>, repeats: <#Bool#>)
         NSRunLoop.currentRunLoop().addTimer(timer1, forMode: NSDefaultRunLoopMode);
         window.addSubview(button);
         view = button;
