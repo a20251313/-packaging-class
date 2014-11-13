@@ -637,6 +637,7 @@
 	
     CGContextRef context = UIGraphicsGetCurrentContext();
 
+    CTFontCreatePathForGlyph
     if (dimBackground) {
         //Gradient colours
         size_t gradLocationsNum = 2;
