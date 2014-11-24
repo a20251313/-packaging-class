@@ -24,6 +24,6 @@ class SCLAlertViewResponder: NSObject {
     }
     func close()
     {
-        
+        self.alertView.hideView();
     }
 }
