@@ -33,7 +33,7 @@
 #import "OHAttributedLabel.h"
 #import "NSAttributedString+Attributes.h"
 
-#define OHAttributedLabel_WarnAboutKnownIssues 1
+#define OHAttributedLabel_WarnAboutKnownIssues 0
 
 /////////////////////////////////////////////////////////////////////////////
 // MARK: Private Utility methods
