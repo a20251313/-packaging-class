@@ -30,23 +30,6 @@
 @synthesize state = _state;
 @synthesize loading = _loading;
 
-- (void)dealloc
-{
-    [_stateLabel release];
-    _stateLabel = nil;
-    
-    [_dateLabel release];
-    _dateLabel = nil;
-    
-    [_arrowView release];
-    _arrowView = nil;
-    
-    [_activityView release];
-    _activityView = nil;
-    
-    [super dealloc];
-}
-
 //Default is at top
 - (id)initWithFrame:(CGRect)frame atTop:(BOOL)top {
     self = [super initWithFrame:frame];
@@ -59,16 +42,16 @@
         _stateLabel = [[UILabel alloc] init ];
         _stateLabel.font = ft;
         _stateLabel.textColor = kTextColor;
-        _stateLabel.textAlignment = UITextAlignmentCenter;
+        _stateLabel.textAlignment = NSTextAlignmentCenter;
         _stateLabel.backgroundColor = kPRBGColor;
         _stateLabel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-        _stateLabel.text = NSLocalizedString(@"下拉刷新", @"");
+        _stateLabel.text = NSLocalizedString(@"下拉即可刷新", @"");
         [self addSubview:_stateLabel];
         
         _dateLabel = [[UILabel alloc] init ];
         _dateLabel.font = ft;
         _dateLabel.textColor = kTextColor;
-        _dateLabel.textAlignment = UITextAlignmentCenter;
+        _dateLabel.textAlignment = NSTextAlignmentCenter;
         _dateLabel.backgroundColor = kPRBGColor;
         _dateLabel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
         //        _dateLabel.text = NSLocalizedString(@"最后更新", @"");
@@ -129,7 +112,7 @@
         
         UIImage *arrow = [UIImage imageNamed:@"blueArrowDown"];
         _arrow.contents = (id)arrow.CGImage;
-        _stateLabel.text = NSLocalizedString(@"上拉加载", @"");
+        _stateLabel.text = NSLocalizedString(@"松开即可更新", @"");
     }
     
     _stateLabel.frame = stateFrame;
@@ -156,9 +139,9 @@
             
             _loading = YES;
             if (self.isAtTop) {
-                _stateLabel.text = NSLocalizedString(@"正在刷新", @"");
+                _stateLabel.text = NSLocalizedString(@"正在载入", @"");
             } else {
-                _stateLabel.text = NSLocalizedString(@"正在加载", @"");
+                _stateLabel.text = NSLocalizedString(@"正在载入", @"");
             }
             
         } else if (_state == kPRStatePulling && !_loading) {    //Scrolling
@@ -218,9 +201,9 @@
     NSCalendar *calendar = [NSCalendar currentCalendar];
     NSDateComponents *components = [calendar components:NSYearCalendarUnit|NSMonthCalendarUnit|NSDayCalendarUnit
                                                fromDate:date toDate:[NSDate date] options:0];
-    int year = [components year];
-    int month = [components month];
-    int day = [components day];
+    NSInteger year = [components year];
+    NSInteger month = [components month];
+    NSInteger day = [components day];
     if (year == 0 && month == 0 && day < 3) {
         if (day == 0) {
             title = NSLocalizedString(@"今天",nil);
@@ -236,7 +219,7 @@
     _dateLabel.text = [NSString stringWithFormat:@"%@: %@",
                        NSLocalizedString(@"最后更新", @""),
                        dateString];
-    [df release];
+
 }
 
 @end
@@ -252,19 +235,44 @@
 @synthesize autoScrollToNextPage;
 @synthesize reachedTheEnd = _reachedTheEnd;
 @synthesize headerOnly = _headerOnly;
-@synthesize footerOnly;
 
 
--(void)setfooterOnly:(BOOL)isfooterOnly
+
+-(void)awakeFromNib
 {
-    footerOnly = isfooterOnly;
-    _headerView.hidden = footerOnly;
+    
+
+    CGRect rect = CGRectZero;
+    _headerView = [[LoadingView alloc] initWithFrame:rect atTop:YES];
+    _headerView.atTop = YES;
+    [self addSubview:_headerView];
+    
+    
+    _footerView = [[LoadingView alloc] initWithFrame:rect atTop:NO];
+    _footerView.atTop = NO;
+    [self addSubview:_footerView];
+    
+    [self addObserver:self forKeyPath:@"contentSize" options:NSKeyValueObservingOptionNew context:nil];
+    
 }
-- (void)dealloc {
-    [self removeObserver:self forKeyPath:@"contentSize"];
-    [_headerView release];
-    [_footerView release];
-    [super dealloc];
+
+
+-(void)resizeFrame
+{
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        CGRect frame = self.frame;
+        CGRect rect = CGRectMake(0, 0 - frame.size.height, frame.size.width, frame.size.height);
+        _headerView.frame = rect;
+        
+        rect = CGRectMake(0, frame.size.height, frame.size.width, frame.size.height);
+        _footerView.frame = rect;
+        
+        [_headerView layouts];
+        [_footerView layouts];
+    });
+  
+    
 }
 
 - (id)initWithFrame:(CGRect)frame style:(UITableViewStyle)style
@@ -285,15 +293,6 @@
         
         [self addObserver:self forKeyPath:@"contentSize" options:NSKeyValueObservingOptionNew context:nil];
         
-    }
-    return self;
-}
-
-- (id)initWithFrame:(CGRect)frame pullingDelegate:(id<PullingRefreshTableViewDelegate>)aPullingDelegate andStyle:(UITableViewStyle)style
-{
-    self = [self initWithFrame:frame style:style];
-    if (self) {
-        self.pullingDelegate = aPullingDelegate;
     }
     return self;
 }
@@ -345,6 +344,7 @@
 
 - (void)tableViewDidScroll:(UIScrollView *)scrollView {
     
+    
     if (_headerView.state == kPRStateLoading || _footerView.state == kPRStateLoading) {
         return;
     }
@@ -375,16 +375,18 @@
     //    CGPoint offset = scrollView.contentOffset;
     //    CGSize size = scrollView.frame.size;
     //    CGSize contentSize = scrollView.contentSize;
+
+    //  NSLog(@"====%f", fabsf(scrollView.contentOffset.y));
+    
+    float height = fabsf(scrollView.contentOffset.y);
+    if (height < 60) {
+        return;
+    }
+    
     if (_headerView.state == kPRStateLoading || _footerView.state == kPRStateLoading) {
         return;
     }
-    if (_headerView.state == kPRStatePulling)
-    {
-        
-        if (footerOnly)
-        {
-            return;
-        }
+    if (_headerView.state == kPRStatePulling) {
         //    if (offset.y < -kPROffsetY) {
         _isFooterInAction = NO;
         _headerView.state = kPRStateLoading;
@@ -416,14 +418,9 @@
 }
 
 - (void)tableViewDidFinishedLoadingWithMessage:(NSString *)msg{
-    
+
     //    if (_headerView.state == kPRStateLoading) {
-    if (_headerView.loading)
-    {
-        if (footerOnly)
-        {
-            return;
-        }
+    if (_headerView.loading) {
         _headerView.loading = NO;
         [_headerView setState:kPRStateNormal animated:NO];
         NSDate *date = [NSDate date];
@@ -460,7 +457,7 @@
 }
 
 - (void)flashMessage:(NSString *)msg{
-    //Show message
+  
     __block CGRect rect = CGRectMake(0, self.contentOffset.y - 20, self.bounds.size.width, 20);
     
     if (_msgLabel == nil) {
@@ -469,7 +466,7 @@
         _msgLabel.font = [UIFont systemFontOfSize:14.f];
         _msgLabel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
         _msgLabel.backgroundColor = [UIColor orangeColor];
-        _msgLabel.textAlignment = UITextAlignmentCenter;
+        _msgLabel.textAlignment = NSTextAlignmentCenter;
         [self addSubview:_msgLabel];
     }
     _msgLabel.text = msg;
@@ -489,6 +486,8 @@
 }
 
 - (void)launchRefreshing {
+    
+   
     [self setContentOffset:CGPointMake(0,0) animated:NO];
     [UIView animateWithDuration:kPRAnimationDuration animations:^{
         self.contentOffset = CGPointMake(0, -kPROffsetY-1);
@@ -497,10 +496,17 @@
     }];
 }
 
+
+-(void)dealloc
+{
+    [self removeObserver:self forKeyPath:@"contentSize"];
+}
+
 #pragma mark -
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     
+   
     CGRect frame = _footerView.frame;
     CGSize contentSize = self.contentSize;
     frame.origin.y = contentSize.height < self.frame.size.height ? self.frame.size.height : contentSize.height;
@@ -510,11 +516,9 @@
         _isFooterInAction = NO;
     } else if (_isFooterInAction) {
         CGPoint offset = self.contentOffset;
-        offset.y += 44.f;
+        //        offset.y += 44.f;   forbiddey by tengjianzhao
         self.contentOffset = offset;
     }
-    
-    
 }
 
 @end

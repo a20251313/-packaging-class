@@ -43,16 +43,12 @@ typedef enum {
     BOOL _isFooterInAction;
     NSInteger _bottomRow;
 }
-@property (assign,nonatomic) id <PullingRefreshTableViewDelegate> pullingDelegate;
+@property (weak,nonatomic) id <PullingRefreshTableViewDelegate> pullingDelegate;
 @property (nonatomic) BOOL autoScrollToNextPage;
 @property (nonatomic) BOOL reachedTheEnd;
 @property (nonatomic,getter = isHeaderOnly) BOOL headerOnly;
-@property (nonatomic,getter = isFootrtOnly) BOOL footerOnly;
--(void)setfooterOnly:(BOOL)isfooterOnly;
 
 - (id)initWithFrame:(CGRect)frame pullingDelegate:(id<PullingRefreshTableViewDelegate>)aPullingDelegate;
-
-- (id)initWithFrame:(CGRect)frame pullingDelegate:(id<PullingRefreshTableViewDelegate>)aPullingDelegate andStyle:(UITableViewStyle)style;
 
 - (void)tableViewDidScroll:(UIScrollView *)scrollView;
 
@@ -63,6 +59,8 @@ typedef enum {
 - (void)tableViewDidFinishedLoadingWithMessage:(NSString *)msg;
 
 - (void)launchRefreshing;
+
+-(void)resizeFrame;
 
 @end
 
@@ -79,6 +77,8 @@ typedef enum {
 //Implement the follows to set date you want,Or Ignore them to use current date
 - (NSDate *)pullingTableViewRefreshingFinishedDate;
 - (NSDate *)pullingTableViewLoadingFinishedDate;
+
+
 @end
 
 //Usage example
